@@ -1,0 +1,88 @@
+
+## update the system packages
+sudo apt-get update
+
+## #1: Install OpenJDK 17 on Ubuntu 24.04 LTS
+apt install openjdk-17-jdk openjdk-17-jre -y
+
+##Download the SonaType Nexus on Ubuntu using wget
+cd /opt 
+sudo wget https://download.sonatype.com/nexus/3/latest-unix.tar.gz   
+
+
+##Extract the Nexus repository setup in /opt directory
+tar -zxvf latest-unix.tar.gz     
+
+##Rename the extracted Nexus setup folder to nexus
+sudo mv /opt/nexus-3.77.0-08/ /opt/nexus
+
+##As security practice, not to run nexus service using root user, so lets create new user named nexus to run nexus service
+sudo adduser nexus   --> give password
+
+
+##To set no password for nexus user open the visudo file in ubuntu
+sudo visudo
+
+##Add below line into it , save and exit
+nexus ALL=(ALL) NOPASSWD: ALL
+
+##Give permission to nexus files and nexus directory to nexus user
+sudo chown -R nexus:nexus /opt/nexus
+sudo chown -R nexus:nexus /opt/sonatype-work        
+
+##To run nexus as service at boot time, open /opt/nexus/bin/nexus.rc file, uncomment it and add nexus user as shown below
+sudo nano /opt/nexus/bin/nexus.rc
+run_as_user="nexus"   
+
+
+##To Increase the nexus JVM heap size, you can modify the size as shown below
+
+vi /opt/nexus/bin/nexus.vmoptions
+
+-Xms1024m
+-Xmx1024m
+-XX:MaxDirectMemorySize=1024m
+
+-XX:LogFile=./sonatype-work/nexus3/log/jvm.log
+-XX:-OmitStackTraceInFastThrow
+-Djava.net.preferIPv4Stack=true
+-Dkaraf.home=.
+-Dkaraf.base=.
+-Dkaraf.etc=etc/karaf
+-Djava.util.logging.config.file=/etc/karaf/java.util.logging.properties
+-Dkaraf.data=./sonatype-work/nexus3
+-Dkaraf.log=./sonatype-work/nexus3/log
+-Djava.io.tmpdir=./sonatype-work/nexus3/tmp 
+
+##To run nexus as service using Systemd
+sudo vi /etc/systemd/system/nexus.service
+
+
+[Unit]
+Description=nexus service
+After=network.target
+
+[Service]
+Type=forking
+LimitNOFILE=65536
+ExecStart=/opt/nexus/bin/nexus start
+ExecStop=/opt/nexus/bin/nexus stop
+User=nexus
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target 
+----------------------------------------------
+TO start the nexus Service
+
+sudo systemctl start nexus 
+
+sudo systemctl enable nexus 
+
+sudo systemctl status nexus  
+
+tail -f /opt/sonatype-work/nexus3/log/nexus.log 
+
+ufw allow 8081/tcp   --> if required
+
+http://server_IP:8081  
